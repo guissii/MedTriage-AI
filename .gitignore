@@ -1,0 +1,9 @@
+*.exe
+*.dll
+*.so
+*.dylib
+__pycache__/
+.venv/
+.env
+.DS_Store
+*.db
