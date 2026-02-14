@@ -34,6 +34,7 @@ Provide a JSON response with the following keys:
 4. "disclaimer"
 
 Ensure the output is valid JSON. Do not include markdown formatting (like ```json).
+Respond in the following language: {data.language}.
 """
     return prompt
 

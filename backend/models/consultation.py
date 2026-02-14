@@ -8,6 +8,7 @@ class ConsultationRequest(BaseModel):
     symptoms: Symptoms
     biological_analysis: BiologicalAnalysis
     imaging: Imaging
+    language: str = "fr"
 
 class BiologicalFlags(BaseModel):
     inflammation: bool
@@ -16,14 +17,16 @@ class BiologicalFlags(BaseModel):
     liver_stress: bool
 
 class AIAnalysis(BaseModel):
-    clinical_reasoning: str
+    clinical_reasoning: Any
     risk_alerts: Any
-    therapeutic_orientation: str
+    therapeutic_orientation: Any
     disclaimer: str
+    extras: Any | None = None
 
 class ConsultationResponse(BaseModel):
     biological_flags: BiologicalFlags
     ai_analysis: AIAnalysis
+    ai_raw: Any | None = None
 
 class ConsultationRecord(BaseModel):
     id: int

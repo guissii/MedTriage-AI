@@ -25,6 +25,7 @@ export interface BackendConsultationRequest {
   imaging: {
     pulmonary_opacity: boolean;
   };
+  language?: string;
 }
 
 export interface BackendConsultationResponse {
@@ -39,7 +40,9 @@ export interface BackendConsultationResponse {
     risk_alerts: any;
     therapeutic_orientation: string;
     disclaimer: string;
+    extras?: any;
   };
+  ai_raw?: any;
 }
 
 export const consultationApi = {
@@ -47,7 +50,8 @@ export const consultationApi = {
     patientInfo: PatientInfo,
     symptoms: Symptoms,
     labResults: LabResults,
-    imaging: ImagingObservations
+    imaging: ImagingObservations,
+    language: string
   ): Promise<BackendConsultationResponse> => {
     
     // Map frontend data to backend structure
@@ -79,6 +83,7 @@ export const consultationApi = {
           f.toLowerCase().includes('pneumonia')
         ),
       },
+      language,
     };
 
     const response = await fetch(`${API_BASE_URL}/consultation`, {

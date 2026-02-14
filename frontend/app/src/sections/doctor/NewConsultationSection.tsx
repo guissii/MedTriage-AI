@@ -50,6 +50,9 @@ export function NewConsultationSection() {
   const [currentStep, setCurrentStep] = useState<FormStep>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [language, setLanguage] = useState<'fr' | 'en'>('fr');
+  const [progress, setProgress] = useState(0);
+  const [rawOllama, setRawOllama] = useState<unknown>(null);
 
   // Form Data States
   const [patientInfo, setPatientInfo] = useState<PatientInfo>({
@@ -87,35 +90,14 @@ export function NewConsultationSection() {
   });
 
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis>({
-    diseaseProbabilities: [
-      { disease: 'Pneumonia', probability: 78, icd10Code: 'J18.9' },
-      { disease: 'Acute Bronchitis', probability: 45, icd10Code: 'J20.9' },
-      { disease: 'Viral URI', probability: 32, icd10Code: 'J06.9' },
-      { disease: 'COPD Exacerbation', probability: 15, icd10Code: 'J44.1' },
-      { disease: 'Pulmonary Embolism', probability: 8, icd10Code: 'I26.9' },
-    ],
-    riskAlerts: [
-      {
-        severity: 'high',
-        message: 'Elevated CRP with pulmonary opacity suggests bacterial infection',
-        recommendation: 'Consider empiric antibiotic therapy',
-      },
-      {
-        severity: 'medium',
-        message: 'Patient has risk factors for respiratory complications',
-        recommendation: 'Monitor oxygen saturation closely',
-      },
-    ],
-    therapeuticDirection: 'Empiric antibiotic therapy with community-acquired pneumonia coverage. Monitor response within 48-72 hours.',
-    costComparisons: [
-      { option: 'Amoxicillin-Clavulanate', description: 'First-line oral therapy', estimatedCost: 25, effectiveness: 75, isRecommended: true },
-      { option: 'Azithromycin', description: 'Alternative for penicillin-allergic', estimatedCost: 35, effectiveness: 70, isRecommended: false },
-      { option: 'Levofloxacin', description: 'Reserved for complicated cases', estimatedCost: 85, effectiveness: 85, isRecommended: false },
-    ],
-    explanation: 'The AI model prioritizes pneumonia based on the combination of fever, elevated inflammatory markers (CRP), and pulmonary opacity on imaging. The patient\'s age and symptoms warrant prompt antibiotic therapy.',
-    confidenceScore: 82,
-    processingTime: 2.3,
-    modelVersion: 'MT-Clinical-v2.4',
+    diseaseProbabilities: [],
+    riskAlerts: [],
+    therapeuticDirection: '',
+    costComparisons: [],
+    explanation: '',
+    confidenceScore: 0,
+    processingTime: 0,
+    modelVersion: 'Mistral (Local)',
     generatedAt: new Date(),
   });
 
@@ -141,8 +123,13 @@ export function NewConsultationSection() {
 
   const handleRunAnalysis = async () => {
     setIsSubmitting(true);
+    setProgress(0);
+    const timer = setInterval(() => {
+      setProgress((p) => (p < 95 ? p + 3 : 95));
+    }, 300);
     try {
-      const result = await consultationApi.analyze(patientInfo, symptoms, labResults, imaging);
+      const result = await consultationApi.analyze(patientInfo, symptoms, labResults, imaging, language);
+      setRawOllama(result);
       
       const newRiskAlerts = [];
       if (result.biological_flags.inflammation) {
@@ -218,14 +205,24 @@ export function NewConsultationSection() {
           return String(val || '');
       };
 
-      setAiAnalysis(prev => ({
-        ...prev,
-        riskAlerts: newRiskAlerts.length > 0 ? newRiskAlerts : prev.riskAlerts,
-        therapeuticDirection: result.ai_analysis.therapeutic_orientation ? ensureString(result.ai_analysis.therapeutic_orientation) : prev.therapeuticDirection,
-        explanation: result.ai_analysis.clinical_reasoning ? ensureString(result.ai_analysis.clinical_reasoning) : prev.explanation,
+      const costComparisons = result.ai_analysis?.extras?.cost_comparisons || [];
+      setAiAnalysis({
+        diseaseProbabilities: [],
+        riskAlerts: newRiskAlerts,
+        therapeuticDirection: result.ai_analysis.therapeutic_orientation ? ensureString(result.ai_analysis.therapeutic_orientation) : '',
+        explanation: result.ai_analysis.clinical_reasoning ? ensureString(result.ai_analysis.clinical_reasoning) : '',
+        costComparisons: costComparisons.map((c: any) => ({
+          option: c.option,
+          description: c.description,
+          estimatedCost: c.estimatedCost,
+          effectiveness: c.effectiveness ?? 0,
+          isRecommended: !!c.isRecommended
+        })),
+        confidenceScore: 0,
+        processingTime: 0,
         modelVersion: 'Mistral (Local)',
         generatedAt: new Date(),
-      }));
+      });
 
       setShowResults(true);
       setCurrentStep(5);
@@ -233,6 +230,8 @@ export function NewConsultationSection() {
       console.error('Analysis failed:', error);
       alert('Failed to connect to backend. Please ensure the backend server is running.');
     } finally {
+      setProgress(100);
+      setTimeout(() => clearInterval(timer), 200);
       setIsSubmitting(false);
     }
   };
@@ -282,6 +281,17 @@ export function NewConsultationSection() {
             Step {currentStep} of 5 · Complete the form for AI analysis
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">Language</Label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
+            className="border rounded-md px-2 py-1 text-sm"
+          >
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </select>
+        </div>
         {showResults && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleReset} className="gap-2">
@@ -291,6 +301,12 @@ export function NewConsultationSection() {
           </div>
         )}
       </div>
+      {isSubmitting && (
+        <div className="w-full h-2 bg-muted rounded">
+          <div className="h-2 bg-primary rounded transition-all" style={{ width: `${progress}%` }} />
+          <div className="text-xs text-muted-foreground mt-1">{progress}%</div>
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between">
@@ -352,10 +368,11 @@ export function NewConsultationSection() {
               onChange={setImaging}
               onRunAnalysis={handleRunAnalysis}
               isSubmitting={isSubmitting}
+              progress={progress}
             />
           )}
           {currentStep === 5 && showResults && (
-            <AIResultsStep analysis={aiAnalysis} />
+            <AIResultsStep analysis={aiAnalysis} rawJson={rawOllama} />
           )}
         </CardContent>
       </Card>
@@ -832,12 +849,14 @@ function ImagingStep({
   data, 
   onChange,
   onRunAnalysis,
-  isSubmitting
+  isSubmitting,
+  progress
 }: { 
   data: ImagingObservations; 
   onChange: (data: ImagingObservations) => void;
   onRunAnalysis: () => void;
   isSubmitting: boolean;
+  progress: number;
 }) {
   const findings = [
     { key: 'pulmonary_opacity', label: 'Pulmonary Opacity' },
@@ -930,7 +949,7 @@ function ImagingStep({
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Analyzing...
+              {`Analyzing... ${progress}%`}
             </>
           ) : (
             <>
@@ -945,7 +964,7 @@ function ImagingStep({
 }
 
 // Step 5: AI Results
-function AIResultsStep({ analysis }: { analysis: AIAnalysis }) {
+function AIResultsStep({ analysis, rawJson }: { analysis: AIAnalysis, rawJson?: unknown }) {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'bg-red-500/10 text-red-600 border-red-200';
@@ -1092,6 +1111,18 @@ function AIResultsStep({ analysis }: { analysis: AIAnalysis }) {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Raw Ollama Response */}
+      {rawJson && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="font-semibold mb-2">Raw Ollama Response</h4>
+            <pre className="text-xs overflow-auto p-3 rounded bg-muted/40 border">
+{JSON.stringify(rawJson, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

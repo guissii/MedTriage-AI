@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend.models.consultation import ConsultationRequest, ConsultationResponse, BiologicalFlags, AIAnalysis, ConsultationRecord
 from backend.services.biological_engine import analyze_biology
 from backend.services.ollama_service import call_ollama
+from backend.services.drug_optimizer import suggest_ma_options
 from backend.database.connection import get_db
 from backend.models.db_models import ConsultationDB
 import json
@@ -19,16 +20,22 @@ async def create_consultation(request: ConsultationRequest, db: Session = Depend
     
     # Construct response objects
     flags = BiologicalFlags(**bio_results)
+    ma_opts = suggest_ma_options(request, bio_results, ai_results)
     ai_analysis = AIAnalysis(
         clinical_reasoning=ai_results.get("clinical_reasoning", "N/A"),
         risk_alerts=ai_results.get("risk_alerts", "N/A"),
         therapeutic_orientation=ai_results.get("therapeutic_orientation", "N/A"),
-        disclaimer=ai_results.get("disclaimer", "AI generated.")
+        disclaimer=ai_results.get("disclaimer", "AI generated."),
+        extras={
+            **{k: v for k, v in ai_results.items() if k not in ["clinical_reasoning", "risk_alerts", "therapeutic_orientation", "disclaimer"]},
+            **ma_opts
+        }
     )
     
     response = ConsultationResponse(
         biological_flags=flags,
-        ai_analysis=ai_analysis
+        ai_analysis=ai_analysis,
+        ai_raw=ai_results
     )
     
     # 3. Save to Database
