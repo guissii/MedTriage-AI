@@ -175,18 +175,54 @@ export function NewConsultationSection() {
       }
       
       if (result.ai_analysis.risk_alerts) {
-         newRiskAlerts.push({
-             severity: 'medium',
-             message: result.ai_analysis.risk_alerts,
-             recommendation: 'See detailed analysis.'
-         });
+         const rawAlerts = result.ai_analysis.risk_alerts;
+         
+         if (Array.isArray(rawAlerts)) {
+             rawAlerts.forEach(alert => {
+                 let msg = '';
+                 if (typeof alert === 'object' && alert !== null) {
+                     msg = Object.entries(alert)
+                        .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)}: ${v}`)
+                        .join(', ');
+                 } else {
+                     msg = String(alert);
+                 }
+                 if (msg) {
+                    newRiskAlerts.push({
+                        severity: 'high',
+                        message: msg,
+                        recommendation: 'Review patient history and monitor closely.'
+                    });
+                 }
+             });
+         } else if (typeof rawAlerts === 'object' && rawAlerts !== null) {
+             Object.entries(rawAlerts).forEach(([key, value]) => {
+                 newRiskAlerts.push({
+                     severity: 'high',
+                     message: `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`,
+                     recommendation: 'Review patient history and monitor closely.'
+                 });
+             });
+         } else {
+             newRiskAlerts.push({
+                 severity: 'high',
+                 message: String(rawAlerts),
+                 recommendation: 'See detailed analysis.'
+             });
+         }
       }
+
+      const ensureString = (val: unknown): string => {
+          if (typeof val === 'string') return val;
+          if (typeof val === 'object' && val !== null) return JSON.stringify(val);
+          return String(val || '');
+      };
 
       setAiAnalysis(prev => ({
         ...prev,
         riskAlerts: newRiskAlerts.length > 0 ? newRiskAlerts : prev.riskAlerts,
-        therapeuticDirection: result.ai_analysis.therapeutic_orientation || prev.therapeuticDirection,
-        explanation: result.ai_analysis.clinical_reasoning || prev.explanation,
+        therapeuticDirection: result.ai_analysis.therapeutic_orientation ? ensureString(result.ai_analysis.therapeutic_orientation) : prev.therapeuticDirection,
+        explanation: result.ai_analysis.clinical_reasoning ? ensureString(result.ai_analysis.clinical_reasoning) : prev.explanation,
         modelVersion: 'Mistral (Local)',
         generatedAt: new Date(),
       }));

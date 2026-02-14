@@ -36,7 +36,7 @@ export interface BackendConsultationResponse {
   };
   ai_analysis: {
     clinical_reasoning: string;
-    risk_alerts: string;
+    risk_alerts: any;
     therapeutic_orientation: string;
     disclaimer: string;
   };

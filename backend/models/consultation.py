@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Dict, Any
+from datetime import datetime
 from .patient import Patient, Symptoms, BiologicalAnalysis, Imaging
 
 class ConsultationRequest(BaseModel):
@@ -16,10 +17,20 @@ class BiologicalFlags(BaseModel):
 
 class AIAnalysis(BaseModel):
     clinical_reasoning: str
-    risk_alerts: str
+    risk_alerts: Any
     therapeutic_orientation: str
     disclaimer: str
 
 class ConsultationResponse(BaseModel):
     biological_flags: BiologicalFlags
     ai_analysis: AIAnalysis
+
+class ConsultationRecord(BaseModel):
+    id: int
+    doctor_id: str
+    patient_data: ConsultationRequest
+    analysis_result: ConsultationResponse
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -49,7 +49,7 @@ def call_ollama(data: ConsultationRequest, bio_flags: dict) -> dict:
                 "stream": False,
                 "format": "json"  # Enforce JSON mode if supported by Ollama/model
             },
-            timeout=30 # Add timeout to prevent hanging
+            timeout=120 # Add timeout to prevent hanging
         )
         response.raise_for_status()
         result = response.json()
