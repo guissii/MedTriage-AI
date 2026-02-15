@@ -1,7 +1,7 @@
 ## MedLine: The Intelligent AI Copilot for the Full Clinical Cycle
 MedLine is an AI-driven healthcare assistant designed to support clinicians throughout the entire patient journey, from initial intake to long-term follow-up. Developed for the Spring School AI For Impact, this project transforms raw medical data into actionable clinical insights. 
 <p align="center">
-  <img src="C:\Users\Welecom\OneDrive\Bureau\hack agorIA\logo .jpeg" alt="MedLine Logo" width="200">
+  <img src="assets/logo.png" width="300" alt="MedLine Logo">
   <h1 align="center">MedLine: The Intelligent AI Copilot</h1>
   <p align="center"><i>for the Full Clinical Cycle</i></p>
 </p>
