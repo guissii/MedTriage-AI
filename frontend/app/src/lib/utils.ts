@@ -38,8 +38,7 @@ export function calculateAge(dateOfBirth: Date | string): number {
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--;
   }
-  
-  return age;
+  return Math.max(0, age);
 }
 
 export function calculateBMI(weight: number, height: number): number {
@@ -55,10 +54,14 @@ export function getBMICategory(bmi: number): { category: string; color: string }
   return { category: 'Obese', color: 'text-red-500' };
 }
 
-export function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(amount: number, currency = 'MAD'): string {
+  if (!Number.isFinite(amount)) return '—';
+  return new Intl.NumberFormat('fr-MA', {
     style: 'currency',
     currency,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 

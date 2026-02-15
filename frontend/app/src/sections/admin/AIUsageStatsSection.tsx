@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,19 +26,54 @@ import {
   Area
 } from 'recharts';
 
+type ApiMetrics = {
+  total_consultations: number;
+  total_ai_analyses: number;
+  tokens: { prompt_eval_count: number; eval_count: number; total_tokens: number };
+  avg_processing_ms: number;
+  by_day: { date: string; count: number }[];
+};
+
 export function AIUsageStatsSection() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('week');
+  const [apiMetrics, setApiMetrics] = useState<ApiMetrics | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const chartData = mockAIUsageStats.map(stat => ({
-    date: stat.date.slice(5),
-    analyses: stat.totalAnalyses,
-    confidence: stat.averageConfidenceScore,
-    time: stat.averageProcessingTime,
-  }));
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('http://localhost:8000/api/metrics/ai-usage');
+        const data: ApiMetrics = await res.json();
+        setApiMetrics(data);
+      } catch {
+        // Fallback silently to mock data
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
-  const totalAnalyses = mockAIUsageStats.reduce((sum, stat) => sum + stat.totalAnalyses, 0);
+  const chartData = apiMetrics
+    ? apiMetrics.by_day.map(d => ({
+        date: d.date.slice(5),
+        analyses: d.count,
+        confidence: 80, // placeholder until model confidence is tracked
+        time: (apiMetrics.avg_processing_ms || 0) / 1000,
+      }))
+    : mockAIUsageStats.map(stat => ({
+        date: stat.date.slice(5),
+        analyses: stat.totalAnalyses,
+        confidence: stat.averageConfidenceScore,
+        time: stat.averageProcessingTime,
+      }));
+
+  const totalAnalyses = apiMetrics?.total_ai_analyses ??
+    mockAIUsageStats.reduce((sum, stat) => sum + stat.totalAnalyses, 0);
   const avgConfidence = mockAIUsageStats.reduce((sum, stat) => sum + stat.averageConfidenceScore, 0) / mockAIUsageStats.length;
-  const avgProcessingTime = mockAIUsageStats.reduce((sum, stat) => sum + stat.averageProcessingTime, 0) / mockAIUsageStats.length;
+  const avgProcessingTime = apiMetrics ? (apiMetrics.avg_processing_ms || 0) / 1000
+    : mockAIUsageStats.reduce((sum, stat) => sum + stat.averageProcessingTime, 0) / mockAIUsageStats.length;
 
   const allDiseases = mockAIUsageStats.flatMap(stat => stat.topDiseases);
   const diseaseCounts = allDiseases.reduce((acc, curr) => {
@@ -58,7 +93,7 @@ export function AIUsageStatsSection() {
         <div>
           <h1 className="text-2xl font-bold">AI Usage Statistics</h1>
           <p className="text-sm text-muted-foreground">
-            Monitor AI performance and usage metrics
+            Monitor AI performance and usage metrics {loading ? '· Loading…' : ''}
           </p>
         </div>
         <div className="flex gap-2">
@@ -104,9 +139,9 @@ export function AIUsageStatsSection() {
           isTime
         />
         <StatCard
-          title="Success Rate"
-          value="98.5%"
-          change={+2}
+          title="Tokens (total)"
+          value={apiMetrics?.tokens.total_tokens ?? 0}
+          change={+0}
           icon={BarChart3}
         />
       </div>

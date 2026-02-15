@@ -7,3 +7,30 @@ __pycache__/
 .env
 .DS_Store
 *.db
+
+# Node / Frontend build artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+.vite/
+**/.vite/
+.turbo/
+**/.turbo/
+coverage/
+**/coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+**/__pycache__/
+*.pyc
+
+# Runtime data / uploads
+uploads/
+**/uploads/

@@ -15,7 +15,7 @@ class Symptoms(BaseModel):
 
 class BiologicalAnalysis(BaseModel):
     crp: float
-    leukocytes: int
+    leukocytes: float
     creatinine: float
     asat: float
     alat: float

@@ -48,7 +48,7 @@ def call_ollama(data: ConsultationRequest, bio_flags: dict) -> dict:
                 "model": "mistral",
                 "prompt": prompt,
                 "stream": False,
-                "format": "json"  # Enforce JSON mode if supported by Ollama/model
+                "format": "json"
             },
             timeout=120 # Add timeout to prevent hanging
         )
@@ -60,15 +60,41 @@ def call_ollama(data: ConsultationRequest, bio_flags: dict) -> dict:
         
         try:
             parsed_json = json.loads(generated_text)
-            return parsed_json
+            # Attach useful metadata for metrics/monitoring
+            extras = {}
+            if "model" in result:
+                extras["model"] = result.get("model")
+            if "total_duration" in result:
+                # Convert ns to ms
+                extras["total_duration_ms"] = round(result.get("total_duration", 0) / 1_000_000, 2)
+            if "load_duration" in result:
+                extras["load_duration_ms"] = round(result.get("load_duration", 0) / 1_000_000, 2)
+            if "eval_count" in result:
+                extras["eval_count"] = result.get("eval_count")
+            if "prompt_eval_count" in result:
+                extras["prompt_eval_count"] = result.get("prompt_eval_count")
+            # Merge extras alongside model output keys (router will place them under ai_analysis.extras)
+            return {**parsed_json, **extras}
         except json.JSONDecodeError:
             # Fallback if valid JSON isn't returned
-            return {
+            fallback = {
                 "clinical_reasoning": generated_text,
                 "risk_alerts": "Could not parse specific risks.",
                 "therapeutic_orientation": "Consult raw reasoning.",
                 "disclaimer": "AI assistant only. Output parsing failed."
             }
+            # Also expose raw metrics if available
+            if "model" in result:
+                fallback["model"] = result.get("model")
+            if "total_duration" in result:
+                fallback["total_duration_ms"] = round(result.get("total_duration", 0) / 1_000_000, 2)
+            if "load_duration" in result:
+                fallback["load_duration_ms"] = round(result.get("load_duration", 0) / 1_000_000, 2)
+            if "eval_count" in result:
+                fallback["eval_count"] = result.get("eval_count")
+            if "prompt_eval_count" in result:
+                fallback["prompt_eval_count"] = result.get("prompt_eval_count")
+            return fallback
             
     except Exception as e:
         print(f"Error calling Ollama: {e}")
@@ -78,3 +104,37 @@ def call_ollama(data: ConsultationRequest, bio_flags: dict) -> dict:
             "therapeutic_orientation": "N/A",
             "disclaimer": "System error."
         }
+
+def ask_chat(question: str, context: str = "", language: str = "fr") -> dict:
+    system = (
+        "You are a helpful medical assistant. Answer concisely, cite key risks when relevant, "
+        "and never give a final diagnosis. If context is provided, use it."
+    )
+    prompt = f"""Context:
+{context}
+
+Question:
+{question}
+
+Answer in {language}. Keep it concise and structured."""
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": "mistral",
+                "prompt": f"{system}\n\n{prompt}",
+                "stream": False
+            },
+            timeout=120
+        )
+        response.raise_for_status()
+        result = response.json()
+        return {
+            "text": result.get("response", ""),
+            "model": result.get("model"),
+            "prompt_eval_count": result.get("prompt_eval_count", 0),
+            "eval_count": result.get("eval_count", 0)
+        }
+    except Exception as e:
+        print(f"Ollama chat error: {e}")
+        return {"text": "Erreur de communication avec le modèle local.", "model": "mistral"}

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { LangProvider, useLang } from '@/context/LangContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { LoginPage } from '@/sections/LoginPage';
+import { DoctorRegisterPage } from '@/sections/DoctorRegisterPage';
 import { LandingPage } from '@/sections/LandingPage';
 import { DoctorDashboard } from '@/sections/DoctorDashboard';
 import { AdminDashboard } from '@/sections/AdminDashboard';
@@ -27,9 +29,26 @@ function ThemeToggle() {
   );
 }
 
+function LanguageToggle() {
+  const { language, setLanguage } = useLang();
+  return (
+    <div className="fixed top-4 right-16 z-50">
+      <select
+        aria-label="Language"
+        value={language}
+        onChange={(e) => setLanguage(e.target.value as 'fr' | 'en')}
+        className="text-xs h-8 px-2 rounded-md border bg-background/80 backdrop-blur-sm shadow-sm"
+      >
+        <option value="fr">FR</option>
+        <option value="en">EN</option>
+      </select>
+    </div>
+  );
+}
+
 function AppContent() {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'dashboard'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'register' | 'dashboard'>('landing');
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -39,6 +58,10 @@ function AppContent() {
 
   const handleLoginClick = () => {
     setCurrentView('login');
+  };
+
+  const handleRegisterClick = () => {
+    setCurrentView('register');
   };
 
   const handleBackToLanding = () => {
@@ -59,13 +82,18 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <ThemeToggle />
+      <LanguageToggle />
       
       {currentView === 'landing' && !isAuthenticated && (
         <LandingPage onLoginClick={handleLoginClick} />
       )}
       
       {currentView === 'login' && !isAuthenticated && (
-        <LoginPage onBackClick={handleBackToLanding} />
+        <LoginPage onBackClick={handleBackToLanding} onRegisterClick={handleRegisterClick} />
+      )}
+      
+      {currentView === 'register' && !isAuthenticated && (
+        <DoctorRegisterPage onBackClick={handleBackToLanding} />
       )}
       
       {isAuthenticated && user?.role === 'doctor' && (
@@ -82,9 +110,11 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <LangProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </LangProvider>
     </ThemeProvider>
   );
 }

@@ -28,22 +28,25 @@ import { PatientRecordsSection } from '@/sections/doctor/PatientRecordsSection';
 import { AnalyticsSection } from '@/sections/doctor/AnalyticsSection';
 import { SettingsSection } from '@/sections/doctor/SettingsSection';
 import { getInitials } from '@/lib/utils';
+import { useT } from '@/context/LangContext';
 
 type DoctorView = 'overview' | 'new-consultation' | 'patients' | 'analytics' | 'settings';
 
 export function DoctorDashboard() {
   const { user, logout } = useAuth();
+  const t = useT();
   const [currentView, setCurrentView] = useState<DoctorView>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { id: 'overview' as DoctorView, label: 'Overview', icon: LayoutDashboard },
-    { id: 'new-consultation' as DoctorView, label: 'New Consultation', icon: Plus },
-    { id: 'patients' as DoctorView, label: 'Patient Records', icon: Users },
-    { id: 'analytics' as DoctorView, label: 'Analytics', icon: BarChart3 },
-    { id: 'settings' as DoctorView, label: 'Settings', icon: Settings },
+    { id: 'overview' as DoctorView, label: t('nav.overview'), icon: LayoutDashboard },
+    { id: 'new-consultation' as DoctorView, label: t('nav.newConsultation'), icon: Plus },
+    { id: 'patients' as DoctorView, label: t('nav.patients'), icon: Users },
+    { id: 'analytics' as DoctorView, label: t('nav.analytics'), icon: BarChart3 },
+    { id: 'settings' as DoctorView, label: t('nav.settings'), icon: Settings },
   ];
+  const currentLabel = navItems.find((x) => x.id === currentView)?.label ?? '';
 
   const renderContent = () => {
     switch (currentView) {
@@ -176,10 +179,10 @@ export function DoctorDashboard() {
 
             {/* Breadcrumb */}
             <div className="hidden sm:flex items-center text-sm text-muted-foreground">
-              <span>Dashboard</span>
+              <span>{t('common.dashboard')}</span>
               <ChevronRight className="w-4 h-4 mx-1" />
               <span className="text-foreground capitalize">
-                {currentView.replace('-', ' ')}
+                {currentLabel}
               </span>
             </div>
           </div>
@@ -190,7 +193,7 @@ export function DoctorDashboard() {
               <Search className="w-4 h-4 text-muted-foreground mr-2" />
               <input
                 type="text"
-                placeholder="Search patients..."
+                placeholder={t('common.searchPatients')}
                 className="bg-transparent text-sm outline-none w-40 lg:w-56"
               />
             </div>
@@ -223,12 +226,12 @@ export function DoctorDashboard() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setCurrentView('settings')}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  {t('nav.settings')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-red-600">
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  {t('common.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

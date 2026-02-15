@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,6 @@ import {
   FileText,
   Download
 } from 'lucide-react';
-import { mockAIUsageStats, mockDashboardMetrics } from '@/data/mockData';
 import { 
   XAxis, 
   YAxis, 
@@ -26,44 +25,60 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { useLang } from '@/context/LangContext';
+import { useAuth } from '@/context/AuthContext';
 
 export function AnalyticsSection() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('week');
+  const [realMetrics, setRealMetrics] = useState<any | null>(null);
+  const { language } = useLang();
+  const { user } = useAuth();
+  const effectiveDoctorId = user?.id || '2';
 
-  const consultationData = [
-    { day: 'Mon', count: 12 },
-    { day: 'Tue', count: 15 },
-    { day: 'Wed', count: 8 },
-    { day: 'Thu', count: 18 },
-    { day: 'Fri', count: 14 },
-    { day: 'Sat', count: 6 },
-    { day: 'Sun', count: 4 },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const url = new URL('http://localhost:8000/api/metrics/ai-usage');
+        url.searchParams.set('doctor_id', effectiveDoctorId);
+        const res = await fetch(url.toString());
+        if (res.ok) {
+          const data = await res.json();
+          setRealMetrics(data);
+        }
+      } catch {
+      }
+    };
+    load();
+  }, [effectiveDoctorId]);
 
-  const aiPerformanceData = mockAIUsageStats.map(stat => ({
-    date: stat.date.slice(5),
-    analyses: stat.totalAnalyses,
-    confidence: stat.averageConfidenceScore,
-    time: stat.averageProcessingTime,
+  const consultationData = realMetrics?.by_day?.map((d: any) => ({
+    day: d.date.slice(5),
+    count: d.count,
+  })) ?? [];
+
+  const aiPerformanceData = realMetrics?.by_day?.map((d: any) => ({
+    date: d.date.slice(5),
+    analyses: d.count,
+    time: d.avg_processing_ms ? d.avg_processing_ms / 1000 : (realMetrics?.avg_processing_ms ? realMetrics.avg_processing_ms / 1000 : 0),
+  })) ?? [];
+
+  const topDiseases = Array.isArray(realMetrics?.top_diseases) ? realMetrics.top_diseases : [];
+  const diseaseTotal = topDiseases.reduce((acc: number, x: any) => acc + Number(x?.count ?? 0), 0) || 1;
+  const diseaseDistribution = topDiseases.slice(0, 8).map((d: any, idx: number) => ({
+    name: String(d?.disease ?? ''),
+    value: Number(d?.count ?? 0),
+    color: idx === 0 ? 'hsl(var(--primary))' : `hsl(var(--primary) / ${Math.max(0.25, 0.9 - idx * 0.08)})`,
+    percent: Math.round((Number(d?.count ?? 0) / diseaseTotal) * 100),
   }));
-
-  const diseaseDistribution = [
-    { name: 'Pneumonia', value: 28, color: 'hsl(var(--primary))' },
-    { name: 'Bronchitis', value: 22, color: 'hsl(var(--primary) / 0.8)' },
-    { name: 'URI', value: 18, color: 'hsl(var(--primary) / 0.6)' },
-    { name: 'COPD', value: 15, color: 'hsl(var(--primary) / 0.4)' },
-    { name: 'Asthma', value: 12, color: 'hsl(var(--primary) / 0.3)' },
-    { name: 'Other', value: 5, color: 'hsl(var(--muted))' },
-  ];
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Analytics</h1>
+          <h1 className="text-2xl font-bold">{language === 'fr' ? 'Analyses' : 'Analytics'}</h1>
           <p className="text-sm text-muted-foreground">
-            Performance metrics and insights
+            {language === 'fr' ? 'Indicateurs de performance et insights' : 'Performance metrics and insights'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -77,12 +92,18 @@ export function AnalyticsSection() {
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
-              {range}
+              {language === 'fr'
+                ? range === 'week'
+                  ? 'semaine'
+                  : range === 'month'
+                    ? 'mois'
+                    : 'trimestre'
+                : range}
             </button>
           ))}
           <Button variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
-            Export
+            {language === 'fr' ? 'Exporter' : 'Export'}
           </Button>
         </div>
       </div>
@@ -90,27 +111,27 @@ export function AnalyticsSection() {
       {/* Summary Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AnalyticsCard
-          title="Total Consultations"
-          value={mockDashboardMetrics.totalConsultations}
-          change={+12}
+          title={language === 'fr' ? 'Consultations' : 'Total Consultations'}
+          value={realMetrics?.total_consultations ?? 0}
+          change={0}
           icon={FileText}
         />
         <AnalyticsCard
-          title="AI Analyses"
-          value={mockDashboardMetrics.aiAnalysesRun}
-          change={+18}
+          title={language === 'fr' ? 'Analyses IA' : 'AI Analyses'}
+          value={realMetrics?.total_ai_analyses ?? 0}
+          change={0}
           icon={Brain}
         />
         <AnalyticsCard
-          title="Avg Confidence"
-          value="82%"
-          change={+5}
+          title={language === 'fr' ? 'Tokens total' : 'Total tokens'}
+          value={realMetrics?.tokens?.total_tokens ?? 0}
+          change={0}
           icon={TrendingUp}
         />
         <AnalyticsCard
-          title="Avg Processing"
-          value="2.3s"
-          change={-8}
+          title={language === 'fr' ? 'Temps moyen' : 'Avg Processing'}
+          value={realMetrics ? `${(realMetrics.avg_processing_ms / 1000).toFixed(2)}s` : '0.00s'}
+          change={0}
           icon={Clock}
           isTime
         />
@@ -121,7 +142,7 @@ export function AnalyticsSection() {
         {/* Consultation Trend */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Consultation Trend</CardTitle>
+            <CardTitle className="text-lg">{language === 'fr' ? 'Tendance des consultations' : 'Consultation Trend'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -159,7 +180,7 @@ export function AnalyticsSection() {
         {/* Disease Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Disease Distribution</CardTitle>
+            <CardTitle className="text-lg">{language === 'fr' ? 'Répartition des maladies' : 'Disease Distribution'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 flex items-center justify-center">
@@ -208,7 +229,7 @@ export function AnalyticsSection() {
         {/* AI Performance */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">AI Performance Over Time</CardTitle>
+            <CardTitle className="text-lg">{language === 'fr' ? 'Performance IA dans le temps' : 'AI Performance Over Time'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -233,8 +254,8 @@ export function AnalyticsSection() {
                   />
                   <Line 
                     type="monotone" 
-                    dataKey="confidence" 
-                    stroke="hsl(var(--success))" 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))" 
                     strokeWidth={2}
                     dot={false}
                   />
@@ -244,11 +265,11 @@ export function AnalyticsSection() {
             <div className="flex justify-center gap-6 mt-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-0.5 bg-primary" />
-                <span className="text-xs text-muted-foreground">Analyses</span>
+                <span className="text-xs text-muted-foreground">{language === 'fr' ? 'Analyses' : 'Analyses'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-emerald-500" />
-                <span className="text-xs text-muted-foreground">Confidence %</span>
+                <div className="w-3 h-0.5 bg-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{language === 'fr' ? 'Temps (s)' : 'Time (s)'}</span>
               </div>
             </div>
           </CardContent>
@@ -257,38 +278,32 @@ export function AnalyticsSection() {
         {/* Top Diagnoses */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Top Diagnoses This {timeRange}</CardTitle>
+            <CardTitle className="text-lg">
+              {language === 'fr'
+                ? `Diagnostics fréquents (${timeRange === 'week' ? 'semaine' : timeRange === 'month' ? 'mois' : 'trimestre'})`
+                : `Top Diagnoses This ${timeRange}`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { disease: 'Pneumonia', count: 28, change: +12 },
-                { disease: 'Acute Bronchitis', count: 22, change: +8 },
-                { disease: 'Viral URI', count: 18, change: -3 },
-                { disease: 'COPD Exacerbation', count: 15, change: +5 },
-                { disease: 'Asthma Exacerbation', count: 12, change: +2 },
-              ].map((item, index) => (
+              {(topDiseases.length ? topDiseases : []).slice(0, 8).map((item: any, index: number) => (
                 <div key={item.disease} className="flex items-center gap-4">
                   <div className="w-6 text-sm text-muted-foreground font-medium">
                     #{index + 1}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">{item.disease}</span>
+                      <span className="font-medium">{String(item.disease ?? '')}</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">{item.count} cases</span>
-                        <Badge 
-                          variant={item.change > 0 ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {item.change > 0 ? '+' : ''}{item.change}
-                        </Badge>
+                        <span className="text-sm">
+                          {Number(item.count ?? 0)} {language === 'fr' ? 'cas' : 'cases'}
+                        </span>
                       </div>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${(item.count / 30) * 100}%` }}
+                        style={{ width: `${Math.min(100, (Number(item.count ?? 0) / Math.max(1, Number(topDiseases?.[0]?.count ?? 1))) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -302,34 +317,34 @@ export function AnalyticsSection() {
       {/* Performance Metrics */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">System Performance Metrics</CardTitle>
+          <CardTitle className="text-lg">{language === 'fr' ? 'Performance du système' : 'System Performance Metrics'}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Uptime</span>
+                <span className="text-sm text-muted-foreground">{language === 'fr' ? 'Disponibilité' : 'Uptime'}</span>
                 <span className="font-semibold">99.9%</span>
               </div>
               <Progress value={99.9} className="h-2" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">API Response</span>
+                <span className="text-sm text-muted-foreground">{language === 'fr' ? 'Réponse API' : 'API Response'}</span>
                 <span className="font-semibold">145ms</span>
               </div>
               <Progress value={85} className="h-2" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Model Accuracy</span>
+                <span className="text-sm text-muted-foreground">{language === 'fr' ? 'Précision modèle' : 'Model Accuracy'}</span>
                 <span className="font-semibold">94.2%</span>
               </div>
               <Progress value={94.2} className="h-2" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">User Satisfaction</span>
+                <span className="text-sm text-muted-foreground">{language === 'fr' ? 'Satisfaction' : 'User Satisfaction'}</span>
                 <span className="font-semibold">4.8/5</span>
               </div>
               <Progress value={96} className="h-2" />
