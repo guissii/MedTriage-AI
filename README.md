@@ -46,8 +46,18 @@ Automation: Automatically maps the confirmed diagnosis to international treatmen
 
 Privacy: End-to-end encrypted patient data stored in a private cloud infrastructure.  
 
-Compliance: Built to meet international healthcare standards, including HIPAA and GDPR.   
+Compliance: Built to meet international healthcare standards, including HIPAA and GDPR. 
 
+## Technical Side
+MedLine is built with a focus on privacy, scalability, and clinical accuracy. Our architecture bridges the gap between raw medical data and structured clinical decision support
+AI Engine & NLP Pipeline
+- Local LLM Inference: We use Ollama to run a fine-tuned, open-source Large Language Model locally. This ensures that sensitive patient data never leaves the local environment, maintaining 100% data sovereignty.  
+- Medical NLP: The system performs clinical entity extraction to identify symptoms and medical history from unstructured doctor notes.   
+- Probabilistic Diagnosis: Based on extracted markers, the AI generates a ranked list of potential diagnoses with associated confidence scores.
+
+
+
+  
 ## Impact & Key Strengths
 
 Ready-to-Deploy: Designed as a scalable, API-first tool for seamless integration into existing Healthcare Information Systems (HIS).   
